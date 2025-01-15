@@ -4,6 +4,11 @@ from payroll import get_payroll
 app = Flask(__name__)
 
 @app.route("/")
+def home():
+    return """<h1>Renewal Therapy Internal Tools</h1>
+    <ul><li><a href="/payroll">Payroll</a></li></ul>"""
+
+@app.route("/payroll")
 def hello_world():
     allocations = get_payroll(
         start_date='2025-01-01',
@@ -16,5 +21,5 @@ def hello_world():
     """.format(
         '\n'.join([f'<p>{a[0]}: ${a[1]:,.2f}</p>' for a in allocations])
     )
-    
+
     return output_html
