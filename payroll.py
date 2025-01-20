@@ -1,7 +1,10 @@
 import requests
 from api_keys import READ_API_KEY
+from config import USE_SSL
 import config
 import math
+
+print(f'Value of USE_SSL: {USE_SSL}')
 
 
 def get_accounts():
@@ -12,7 +15,7 @@ def get_accounts():
         "Authorization": f"Bearer {READ_API_KEY}"
     }
 
-    return requests.get(url, headers=headers).json()
+    return requests.get(url, headers=headers, verify=USE_SSL).json()
 
 
 def get_transactions(account_id, start_date:str = None, end_date:str = None):
@@ -23,7 +26,7 @@ def get_transactions(account_id, start_date:str = None, end_date:str = None):
         "Authorization": f"Bearer {READ_API_KEY}"
     }
 
-    return requests.get(url, headers=headers).json()
+    return requests.get(url, headers=headers, verify=USE_SSL).json()
 
 
 def filter_transactions(transactions, filters):

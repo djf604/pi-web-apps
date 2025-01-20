@@ -17,3 +17,11 @@ TRANSACTION_FILTERS = [
     ('counterpartyName', 'Amazon'),
     ('counterpartyName', 'Mercury')
 ]
+
+USE_SSL = True
+
+# Local config can override any of the above
+try:
+    from local_config import *
+except ImportError:
+    pass  # No local config, so use all of the above
