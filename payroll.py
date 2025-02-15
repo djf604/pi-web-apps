@@ -9,7 +9,25 @@ from datetime import datetime, timedelta
 print(f'Value of USE_SSL: {USE_SSL}')
 
 
-def get_n_pay_periods(n_pay_periods=1):
+def format_pay_periods(n_pay_periods=1):
+    pay_periods = get_n_pay_periods(
+        n_pay_periods=n_pay_periods   
+    )
+
+    pay_periods_config = list()
+    for start_date, end_date in pay_periods:
+        print(start_date)
+        pay_period_allocations = get_payroll(start_date, end_date)
+        pay_periods_config.append({
+            'start_date': start_date.strftime('%b %-d'),
+            'end_date': end_date.strftime('%b %-d, %Y'),
+            'allocations': pay_period_allocations
+        })
+    return pay_periods_config
+
+
+
+def get_n_pay_periods(n_pay_periods=1, date_format_str=None, end_date_format_str=None):
     if n_pay_periods < 1:
         raise ValueError('Must request at least 1 pay period')
     
@@ -36,7 +54,10 @@ def get_n_pay_periods(n_pay_periods=1):
             end_date = pay_periods[-1][0].replace(day=15)
         pay_periods.append((start_date, end_date))
     
-    return [(s.strftime('%Y-%m-%d'), e.strftime('%Y-%m-%d')) for s, e in pay_periods]
+    if date_format_str is None and end_date_format_str is None:
+        return pay_periods
+    
+    return [(s.strftime(date_format_str), e.strftime(end_date_format_str or date_format_str)) for s, e in pay_periods]
 
 
 
@@ -73,7 +94,33 @@ def filter_transactions(transactions, filters):
     return filtered_transactions
 
 
-def get_payroll(start_date:str, end_date:str):
+def get_payroll(start_date: datetime, end_date: datetime):
+    """
+    start_date and end_date is inclusive
+    """
+    transactions = get_transactions(
+        account_id=config.ACCOUNT_IDS['income'],
+        start_date=start_date.strftime('%Y-%m-%d'),
+        end_date=end_date.strftime('%Y-%m-%d')
+    )
+
+    transactions = filter_transactions(
+        transactions=transactions['transactions'],
+        filters=config.TRANSACTION_FILTERS
+    )
+
+    total_income = sum([t['amount'] for t in transactions])
+    # TODO Confirm that at least the amount from total_income exists in bank account
+    allocations = list()
+    for name, alloc in config.TARGET_ALLOCATIONS.items():
+        allocation_amount = math.floor(total_income * alloc * 100) / 100.0
+        allocations.append((name, allocation_amount))
+    allocations.append(('Total Revenue', round(total_income, 2)))
+
+    return allocations
+
+
+def get_payroll_old(start_date:str, end_date:str):
     """
     start_date and end_date is inclusive
     """
