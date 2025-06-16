@@ -6,12 +6,27 @@ import math
 import calendar
 from datetime import datetime, timedelta
 
+from api_interactions import create_transaction, get_transactions
+
 print(f'Value of USE_SSL: {USE_SSL}')
+
+
+def make_transfer(from_account, to_account, amount, idemp_key, dry_run=False):
+    if not dry_run:
+        response = create_transaction(
+            from_account_id=config.ACCOUNT_IDS[from_account],
+            to_account_id=config.RECIPIENT_IDS[to_account],
+            amount=amount,
+            idempotency_key=idemp_key
+        )
+        print(response.text)
+    else:
+        print('Dry run: transferred ${} from {} to {}'.format(round(amount, 2), from_account, to_account))
 
 
 def format_pay_periods(n_pay_periods=1):
     pay_periods = get_n_pay_periods(
-        n_pay_periods=n_pay_periods   
+        n_pay_periods=n_pay_periods
     )
 
     pay_periods_config = list()
@@ -60,29 +75,6 @@ def get_n_pay_periods(n_pay_periods=1, date_format_str=None, end_date_format_str
     return [(s.strftime(date_format_str), e.strftime(end_date_format_str or date_format_str)) for s, e in pay_periods]
 
 
-
-def get_accounts():
-    url = "https://api.mercury.com/api/v1/accounts"
-
-    headers = {
-        "accept": "application/json",
-        "Authorization": f"Bearer {READ_API_KEY}"
-    }
-
-    return requests.get(url, headers=headers, verify=USE_SSL).json()
-
-
-def get_transactions(account_id, start_date:str = None, end_date:str = None):
-    url = f"https://api.mercury.com/api/v1/account/{account_id}/transactions?start={start_date}&end={end_date}"
-
-    headers = {
-        "accept": "application/json",
-        "Authorization": f"Bearer {READ_API_KEY}"
-    }
-
-    return requests.get(url, headers=headers, verify=USE_SSL).json()
-
-
 def filter_transactions(transactions, filters):
     filtered_transactions = list()
     for t in transactions:
@@ -94,7 +86,7 @@ def filter_transactions(transactions, filters):
     return filtered_transactions
 
 
-def get_payroll(start_date: datetime, end_date: datetime):
+def get_payroll(start_date: datetime, end_date: datetime, give_human_names=True):
     """
     start_date and end_date is inclusive
     """
@@ -112,34 +104,9 @@ def get_payroll(start_date: datetime, end_date: datetime):
     total_income = sum([t['amount'] for t in transactions])
     # TODO Confirm that at least the amount from total_income exists in bank account
     allocations = list()
-    for name, alloc in config.TARGET_ALLOCATIONS.items():
+    for (machine_name, human_name), alloc in config.TARGET_ALLOCATIONS.items():
         allocation_amount = math.floor(total_income * alloc * 100) / 100.0
-        allocations.append((name, allocation_amount))
-    allocations.append(('Total Revenue', round(total_income, 2)))
-
-    return allocations
-
-
-def get_payroll_old(start_date:str, end_date:str):
-    """
-    start_date and end_date is inclusive
-    """
-    transactions = get_transactions(
-        account_id=config.ACCOUNT_IDS['income'],
-        start_date=start_date,
-        end_date=end_date
-    )
-
-    transactions = filter_transactions(
-        transactions=transactions['transactions'],
-        filters=config.TRANSACTION_FILTERS
-    )
-
-    total_income = sum([t['amount'] for t in transactions])
-    allocations = list()
-    for name, alloc in config.TARGET_ALLOCATIONS.items():
-        allocation_amount = math.floor(total_income * alloc * 100) / 100.0
-        allocations.append((name, allocation_amount))
+        allocations.append((human_name if give_human_names else machine_name, allocation_amount))
     allocations.append(('Total Revenue', round(total_income, 2)))
 
     return allocations

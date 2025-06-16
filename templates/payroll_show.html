@@ -3,7 +3,7 @@
 {% for period in pay_periods %}
     <h2>Payroll for {{period.start_date}} through {{period.end_date}}</h2>
     {% for name, aloc in period.allocations %}
-        <p>{{name}}: {{aloc}}</p>
+        <p>{{name}}: ${{aloc}}</p>
     {% endfor %}
 {% endfor %}
 <!--
