@@ -6,9 +6,44 @@ import math
 import calendar
 from datetime import datetime, timedelta
 
-from api_interactions import create_transaction, get_transactions
+from api_interactions import create_transaction, get_transactions, get_account
 
 print(f'Value of USE_SSL: {USE_SSL}')
+
+
+def make_payroll_transfer(start_date: datetime, end_date: datetime, dry_run=True):
+    return_values = list()
+    allocations = get_payroll(start_date, end_date, give_human_names=False)
+
+    # Ensure total amount to transfer isn't greater than total amount in Income account
+    total_transfer_amount = sum([a[1] for a in allocations])
+    available_funds = get_available_funds()
+    if total_transfer_amount >= available_funds:
+        return ['Tried to transfer ${}, but available funds are ${}'.format(total_transfer_amount, available_funds)]
+
+    # If funds are available, make the transfer
+    for account_name, transfer_amount in allocations:
+        if account_name == 'Total Revenue':
+            continue
+        # transfer_amount = 0.01
+        idemp_key = '{}to{}-{}-{}'.format(
+            start_date,
+            end_date,
+            account_name,
+            transfer_amount
+        )
+        # print(account_name)
+        print(idemp_key)
+        ret = make_transfer(
+            from_account='income',
+            to_account=account_name,
+            amount=transfer_amount,
+            # amount=0.01,
+            idemp_key=idemp_key,
+            dry_run=dry_run
+        )
+        return_values.append(ret)
+    return return_values
 
 
 def make_transfer(from_account, to_account, amount, idemp_key, dry_run=False):
@@ -18,10 +53,13 @@ def make_transfer(from_account, to_account, amount, idemp_key, dry_run=False):
             to_account_id=config.RECIPIENT_IDS[to_account],
             amount=amount,
             idempotency_key=idemp_key
-        )
-        print(response.text)
-    else:
-        print('Dry run: transferred ${} from {} to {}'.format(round(amount, 2), from_account, to_account))
+        ).json()
+        print(response)
+        if response.get('reasonForFailure') is None:
+            return 'Successfully transferred ${} from {} to {}'.format(round(amount, 2), from_account, to_account)
+        else:
+            return 'Error in transferring ${} from {} to {}: {}'.format(round(amount, 2), from_account, to_account, response.get('errors', {}).get('message'))
+    return 'Dry run: transferred ${} from {} to {}'.format(round(amount, 2), from_account, to_account)
 
 
 def format_pay_periods(n_pay_periods=1):
@@ -34,8 +72,10 @@ def format_pay_periods(n_pay_periods=1):
         print(start_date)
         pay_period_allocations = get_payroll(start_date, end_date)
         pay_periods_config.append({
-            'start_date': start_date.strftime('%b %-d'),
-            'end_date': end_date.strftime('%b %-d, %Y'),
+            'start_date': start_date,
+            'end_date': end_date,
+            'start_date_display': start_date.strftime('%b %-d'),
+            'end_date_display': end_date.strftime('%b %-d, %Y'),
             'allocations': pay_period_allocations
         })
     return pay_periods_config
@@ -110,3 +150,6 @@ def get_payroll(start_date: datetime, end_date: datetime, give_human_names=True)
     allocations.append(('Total Revenue', round(total_income, 2)))
 
     return allocations
+
+def get_available_funds():
+    return get_account(account_id=config.ACCOUNT_IDS['income'])['availableBalance']

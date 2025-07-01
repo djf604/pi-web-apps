@@ -13,6 +13,16 @@ def get_accounts():
 
     return requests.get(url, headers=headers, verify=USE_SSL).json()
 
+def get_account(account_id):
+    url = f"https://api.mercury.com/api/v1/account/{account_id}"
+
+    headers = {
+        "accept": "application/json",
+        "Authorization": f"Bearer {READ_API_KEY}"
+    }
+
+    return requests.get(url, headers=headers, verify=USE_SSL).json()
+
 
 def get_transactions(account_id, start_date:str = None, end_date:str = None):
     url = f"https://api.mercury.com/api/v1/account/{account_id}/transactions?start={start_date}&end={end_date}"
